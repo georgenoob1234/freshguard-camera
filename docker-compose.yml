@@ -1,0 +1,36 @@
+services:
+  camera-service:
+    build: .
+    container_name: camera-service
+    ports:
+      - "8200:8200"
+    environment:
+      SERVICE_PORT: 8200
+      CAMERA_SOURCE: dummy  # Use 'dummy' for testing, '0' for real camera
+      CAMERA_DEFAULT_RESOLUTION: 320x320
+      CAMERA_DEFAULT_FORMAT: jpeg
+      CAMERA_DEFAULT_QUALITY: 95
+      CAMERA_RETENTION_SECONDS: 3600
+      CAMERA_CLEANUP_INTERVAL_SECONDS: 600
+    volumes:
+      - camera-data:/app/data/images
+    # Uncomment below to use a real camera device
+    # devices:
+    #   - /dev/video0:/dev/video0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - fruitstack
+
+volumes:
+  camera-data:
+
+networks:
+  fruitstack:
+    driver: bridge
+
