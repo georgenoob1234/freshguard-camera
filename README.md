@@ -146,7 +146,3 @@ docker run --rm -p 8200:8200 \
 pytest tests/
 ```
 
-## License
-
-Internal use only.
-
