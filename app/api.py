@@ -12,7 +12,7 @@ from PIL import Image
 
 from .camera import CameraCaptureError, CameraManager, parse_resolution
 from .config import Settings, get_settings
-from .models import CaptureRequest, CaptureResponse
+from .models import CaptureImageItem, CaptureRequest, CaptureResponse
 from .storage import ImageStorage
 
 logger = logging.getLogger(__name__)
@@ -42,11 +42,25 @@ def get_camera_manager(request: Request) -> CameraManager:
     return manager
 
 
-@router.post("/capture", response_model=CaptureResponse, status_code=status.HTTP_200_OK)
+def get_extra_camera_managers(request: Request) -> list[CameraManager]:
+    """Return initialized extra camera managers."""
+    managers = getattr(request.app.state, "extra_camera_managers", None)
+    if managers is None:
+        return []
+    return managers
+
+
+@router.post(
+    "/capture",
+    response_model=CaptureResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_200_OK,
+)
 async def capture_image(
     capture_request: CaptureRequest | None = Body(default=None),
     settings: Settings = Depends(get_settings),
     camera_manager: CameraManager = Depends(get_camera_manager),
+    extra_camera_managers: list[CameraManager] = Depends(get_extra_camera_managers),
     storage: ImageStorage = Depends(get_storage),
 ) -> CaptureResponse:
     """Trigger an image capture and return metadata."""
@@ -74,18 +88,31 @@ async def capture_image(
             "resolution": f"{resolution[0]}x{resolution[1]}",
             "format": image_format,
             "quality": quality,
+            "use_extra": payload.use_extra,
         },
     )
 
-    try:
-        frame = camera_manager.capture_fresh_frame(
+    def _capture_and_store(manager: CameraManager, index: int) -> CaptureImageItem:
+        frame = manager.capture_fresh_frame(
             resolution=resolution,
             format=image_format,
             quality=quality,
         )
+        image = Image.fromarray(frame)
+        image_id = uuid4().hex
+        file_path = storage.save_image(image, image_id, image_format, quality)
+        logger.info("Stored captured image at %s", file_path)
+        return CaptureImageItem(
+            index=index,
+            image_id=image_id,
+            image_url_or_path=f"/api/images/{file_path.name}",
+        )
+
+    try:
+        main_capture = _capture_and_store(camera_manager, index=0)
     except CameraCaptureError as exc:
         logger.exception(
-            "Camera capture failed",
+            "Main camera capture failed",
             extra={
                 "resolution": f"{resolution[0]}x{resolution[1]}",
                 "format": image_format,
@@ -97,17 +124,27 @@ async def capture_image(
             detail="Camera capture failed.",
         ) from exc
 
-    image = Image.fromarray(frame)
-    image_id = uuid4().hex
-    file_path = storage.save_image(image, image_id, image_format, quality)
     timestamp = datetime.now(timezone.utc)
 
-    logger.info("Stored captured image at %s", file_path)
+    if not payload.use_extra:
+        return CaptureResponse(
+            image_id=main_capture.image_id,
+            image_url_or_path=main_capture.image_url_or_path,
+            timestamp=timestamp,
+        )
+
+    captures: list[CaptureImageItem] = [main_capture]
+    for extra_camera_manager in extra_camera_managers:
+        try:
+            captures.append(_capture_and_store(extra_camera_manager, index=len(captures)))
+        except CameraCaptureError as exc:
+            logger.warning("Extra camera capture failed; skipping source.", exc_info=exc)
 
     return CaptureResponse(
-        image_id=image_id,
-        image_url_or_path=f"/api/images/{file_path.name}",
+        image_id=main_capture.image_id,
+        image_url_or_path=main_capture.image_url_or_path,
         timestamp=timestamp,
+        images=captures,
     )
 
 

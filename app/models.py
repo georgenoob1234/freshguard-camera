@@ -25,6 +25,10 @@ class CaptureRequest(BaseModel):
         default=None,
         description='Image format, allowed values are "jpeg" or "png".',
     )
+    use_extra: bool = Field(
+        default=False,
+        description="When true, capture from main and all initialized extra cameras.",
+    )
 
     @field_validator("resolution")
     @classmethod
@@ -45,4 +49,18 @@ class CaptureResponse(BaseModel):
         description="Relative HTTP path that can be used to download the binary image.",
     )
     timestamp: datetime = Field(description="UTC timestamp for when the capture occurred.")
+    images: Optional[list["CaptureImageItem"]] = Field(
+        default=None,
+        description="All captured images when use_extra=true; main camera is index 0.",
+    )
+
+
+class CaptureImageItem(BaseModel):
+    """Image metadata for one camera capture in a multi-camera response."""
+
+    index: int = Field(ge=0, description="Zero-based capture index in this response.")
+    image_id: str = Field(description="Unique identifier for the stored image.")
+    image_url_or_path: str = Field(
+        description="Relative HTTP path that can be used to download the binary image.",
+    )
 

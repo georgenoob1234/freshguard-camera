@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import random
 from threading import Lock
-from typing import Tuple
+from typing import Set, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -31,6 +31,50 @@ def parse_resolution(resolution: str) -> Tuple[int, int]:
         raise ValueError("Resolution dimensions must be positive integers.")
 
     return width, height
+
+
+def parse_extra_camera_sources(raw_sources: str | None) -> list[str]:
+    """Parse a comma-separated extras string into trimmed source tokens."""
+    if not raw_sources:
+        return []
+    return [token.strip() for token in raw_sources.split(",") if token.strip()]
+
+
+def normalize_camera_source(source: str) -> str:
+    """Normalize source representation for deterministic logging and comparison."""
+    token = source.strip()
+    token_lower = token.lower()
+    if token.isdigit():
+        return f"index:{int(token)}"
+    if token_lower.startswith("/dev/video"):
+        return f"dev:{token_lower}"
+    return f"raw:{token}"
+
+
+def source_equivalence_keys(source: str) -> Set[str]:
+    """
+    Return keys used for duplicate detection.
+
+    This handles common equivalent notations like "0" and "/dev/video0".
+    """
+    token = source.strip()
+    token_lower = token.lower()
+    keys: Set[str] = {normalize_camera_source(token)}
+
+    if token.isdigit():
+        index_value = int(token)
+        keys.add(f"index:{index_value}")
+        keys.add(f"dev:/dev/video{index_value}")
+        return keys
+
+    if token_lower.startswith("/dev/video"):
+        suffix = token_lower[len("/dev/video") :]
+        if suffix.isdigit():
+            index_value = int(suffix)
+            keys.add(f"index:{index_value}")
+            keys.add(f"dev:/dev/video{index_value}")
+
+    return keys
 
 
 class CameraError(RuntimeError):
