@@ -6,7 +6,8 @@ services:
       - "8200:8200"
     environment:
       SERVICE_PORT: 8200
-      CAMERA_SOURCE: dummy  # Use 'dummy' for testing, '0' for real camera
+      MAIN_CAMERA_SOURCE: dummy  # Use 'dummy' for testing, '0' for real camera
+      EXTRA_CAMERA_SOURCES: ""   # Comma-separated extras, e.g. /dev/video1,2
       CAMERA_DEFAULT_RESOLUTION: 320x320
       CAMERA_DEFAULT_FORMAT: jpeg
       CAMERA_DEFAULT_QUALITY: 95

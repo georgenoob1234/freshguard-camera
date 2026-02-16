@@ -24,11 +24,13 @@ POST /capture
 {
   "resolution": "320x320",
   "format": "jpeg",
-  "quality": 95
+  "quality": 95,
+  "use_extra": false
 }
 ```
 
 All fields are optional and will use configured defaults if omitted.
+When `use_extra=true`, the response includes an `images` array with the main capture at index `0` plus successfully initialized extra cameras.
 
 ## Configuration
 
@@ -40,19 +42,22 @@ The service is configured via environment variables:
 | `CAMERA_DEFAULT_RESOLUTION`       | `320x320`     | Default capture resolution                       |
 | `CAMERA_DEFAULT_FORMAT`           | `jpeg`        | Default image format (`jpeg` or `png`)           |
 | `CAMERA_DEFAULT_QUALITY`          | `95`          | Default JPEG quality (1-100)                     |
-| `CAMERA_SOURCE`                   | `0`           | Camera source (`0`, `/dev/video0`, or `dummy`)   |
+| `MAIN_CAMERA_SOURCE`              | *(required)*  | Main camera source (`0`, `/dev/video0`, or `dummy`) |
+| `EXTRA_CAMERA_SOURCES`            | *(optional)*  | Comma-separated extra camera sources             |
 | `CAMERA_RETENTION_SECONDS`        | `3600`        | How long to keep images before cleanup           |
 | `CAMERA_CLEANUP_INTERVAL_SECONDS` | `600`         | Interval between cleanup passes                  |
 | `CAMERA_WARMUP_FRAMES`            | `3`           | Frames to discard before capture                 |
 | `CAMERA_BUFFER_SIZE`              | `1`           | OpenCV buffer size                               |
 | `SERVICE_PORT`                    | `8200`        | Port the service listens on (Docker)             |
 
+`CAMERA_SOURCE` is supported only as a temporary backward-compatibility fallback when `MAIN_CAMERA_SOURCE` is unset.
+
 ## Local Development
 
 ### Prerequisites
 
 - Python 3.10+
-- A camera device (or use `CAMERA_SOURCE=dummy` for testing)
+- A camera device (or use `MAIN_CAMERA_SOURCE=dummy` for testing)
 
 ### Running Locally
 
@@ -83,7 +88,7 @@ docker build -t camera-service:latest .
 ```bash
 docker run --rm -p 8200:8200 \
   -e SERVICE_PORT=8200 \
-  -e CAMERA_SOURCE=dummy \
+  -e MAIN_CAMERA_SOURCE=dummy \
   -v camera-data:/app/data/images \
   camera-service:latest
 ```
@@ -95,7 +100,8 @@ To access a physical camera from inside the container, you need to pass the devi
 ```bash
 docker run --rm -p 8200:8200 \
   --device /dev/video0:/dev/video0 \
-  -e CAMERA_SOURCE=0 \
+  -e MAIN_CAMERA_SOURCE=0 \
+  -e EXTRA_CAMERA_SOURCES=/dev/video1,2 \
   -v camera-data:/app/data/images \
   camera-service:latest
 ```
@@ -131,7 +137,8 @@ When running in Docker, you can override any configuration via environment varia
 ```bash
 docker run --rm -p 8200:8200 \
   -e SERVICE_PORT=8200 \
-  -e CAMERA_SOURCE=dummy \
+  -e MAIN_CAMERA_SOURCE=dummy \
+  -e EXTRA_CAMERA_SOURCES= \
   -e CAMERA_DEFAULT_RESOLUTION=640x480 \
   -e CAMERA_DEFAULT_FORMAT=png \
   -e CAMERA_RETENTION_SECONDS=7200 \
@@ -145,4 +152,5 @@ docker run --rm -p 8200:8200 \
 ```bash
 pytest tests/
 ```
+
 
