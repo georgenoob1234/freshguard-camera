@@ -21,7 +21,7 @@ class Settings(BaseSettings):
         description="Primary camera source identifier, e.g. 'dummy', '0', or '/dev/video0'.",
     )
     extra_camera_sources: str = Field(
-        default="1",
+        default="",
         description="Optional comma-separated list of additional camera sources.",
     )
     deprecated_camera_source: str | None = Field(
