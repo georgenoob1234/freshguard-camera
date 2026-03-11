@@ -6,8 +6,8 @@ services:
       - "8200:8200"
     environment:
       SERVICE_PORT: 8200
-      MAIN_CAMERA_SOURCE: dummy  # Use 'dummy' for testing, '0' for real camera
-      EXTRA_CAMERA_SOURCES: ""   # Comma-separated extras, e.g. /dev/video1,2
+      MAIN_CAMERA_SOURCE: /dev/video0
+      EXTRA_CAMERA_SOURCES: ""
       CAMERA_DEFAULT_RESOLUTION: 320x320
       CAMERA_DEFAULT_FORMAT: jpeg
       CAMERA_DEFAULT_QUALITY: 95
@@ -15,16 +15,17 @@ services:
       CAMERA_CLEANUP_INTERVAL_SECONDS: 600
     volumes:
       - camera-data:/app/data/images
-    # Uncomment below to use a real camera device
-    # devices:
-    #   - /dev/video0:/dev/video0
+    devices:
+      - /dev/video0:/dev/video0
+    group_add:
+      - 985
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 20s
     networks:
       - fruitstack
 
@@ -34,4 +35,3 @@ volumes:
 networks:
   fruitstack:
     driver: bridge
-
