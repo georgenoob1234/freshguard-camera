@@ -3,7 +3,7 @@ services:
     build: .
     container_name: camera-service
     ports:
-      - "8100:8100"
+      - "8200:8200"
     environment:
       SERVICE_PORT: 8200
       MAIN_CAMERA_SOURCE: /dev/video0
