@@ -69,7 +69,7 @@ EXPOSE ${SERVICE_PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${SERVICE_PORT}/health')" || exit 1
+    CMD python -c "import os,urllib.request; p=os.environ.get('SERVICE_PORT','8200'); urllib.request.urlopen('http://127.0.0.1:%s/health' % p, timeout=3)"
 
 # Run the application
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${SERVICE_PORT}"]
